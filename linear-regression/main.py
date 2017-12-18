@@ -55,8 +55,6 @@ def l2_cost(predicted, actual):
 
 
 def predict(data, theta):
-    # print(data.shape)
-    # print(theta.shape)
     return np.dot(data, theta)
 
 
@@ -74,7 +72,7 @@ def gradient(X, predicted, actual):
 
 
 def gradient_descent(x_train, y_train, learn=0.02, iterations=1000, threshold=0.1):
-    theta = np.array([0.5, 0.8])
+    theta = np.array(np.random.rand(x_train.shape[1]))
     loss = []
     for i in range(iterations):
 
@@ -97,21 +95,23 @@ def gradient_descent(x_train, y_train, learn=0.02, iterations=1000, threshold=0.
     plt.ylabel("Loss")
     plt.xlabel("Iteration")
     plt.show()
-
     min_loss = min(loss)
-    print("Final loss: ", min_loss)
 
     return theta, min_loss
 
 def main():
     # Load the data
     data = np.loadtxt('stock_prices.csv', usecols=(1, 2))
-    X = np.array(data[:, 0])
-    y = np.array(data[:, 1])
+    # data = np.loadtxt('housing.csv', delimiter=",")
 
-    # Make them 2d array for consitency
-    X = np.reshape(X, (X.shape[0], 1))
-    # y = np.reshape(y, (y.shape[0], 1))
+    x_cols = list(range(data.shape[1]-1))
+    print("Using columns ", x_cols, " for X columns")
+
+    X = np.array(data[:, x_cols])
+    y = np.array(data[:, -1])
+
+    print("X Shape: ", X.shape)
+    print("Y Shape: ", y.shape)
 
     # Plot the data
     # fig, ax = plt.subplots(figsize=(12, 8))
@@ -128,28 +128,22 @@ def main():
 
     # Prepare data for training
     x_train = normalize(x_train)
+    y_train = normalize(y_train)
 
     # # Prepend bias term after normalization (or else lots of nans)
     x_train = prepend_bias_term(x_train)
 
-    # Test the functions
-    # theta = np.array([300, 0.5])
-    # predicted = predict(x_train, theta)
-    # loss = l2_cost(predicted, y_train)
-    # grad = gradient(x_train, predicted, y_train)
-
-    # Print results
-    # print(predicted)
-    # print(loss)
-    # print(grad)
 
     # Perform gradient descent
     theta, min_loss = gradient_descent(x_train, y_train, learn=0.1, iterations=100)
     print("Learned theta = ", theta)
     print("Minimum loss = ", min_loss)
 
+
+
     # Prepare test data
     x_test = normalize(x_test)
+    y_test = normalize(y_test)
     x_test = prepend_bias_term(x_test)
 
     # Predict the test values
@@ -157,33 +151,41 @@ def main():
     loss = l2_cost(predicted, y_test)
     print("Loss on test = ", loss)
 
-    # Plot the predictions vs the actual values
-    plt.scatter(x_test[:, 1], predicted, label="Predicted")
-    plt.scatter(x_test[:, 1], y_test, label="Actual")
-    plt.xlabel("Amazon")
-    plt.ylabel("Google")
+    # Plot the results
     axes = plt.gca()
-    axes.set_xlim(xmin=0)
-    axes.set_ylim(ymin=0)
+    if x_train.shape[1] == 2:
+        # Plot the predictions vs the actual values
+        plt.scatter(x_test[:, 1], predicted, label="Predicted")
+        plt.scatter(x_test[:, 1], y_test, label="Actual")
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        axes.set_title("Input vs Output")
+    else:
+        axes.set_title("Predicted vs Actual (should be straight line)")
+        plt.scatter(predicted, y_test)
+        plt.xlabel("Predicted")
+        plt.ylabel("Actual")
+
     plt.legend()
     plt.show()
 
-    # Plot the cost function in 3d
-    fig3 = plt.figure()
-    ax3 = fig3.add_subplot(1, 1, 1, projection='3d')
-    n=100
-    theta0, theta1 = np.meshgrid(np.linspace(-500, 500, n), np.linspace(-500, 500, n))
-    cost = np.empty((n, n))
-    for i in range(n):
-        for j in range(n):
-            predicted = predict(x_test, [theta0[i, j], theta1[i, j]])
-            cost[i,j] = l2_cost(predicted, y_test)
 
-    ax3.plot_surface(theta0, theta1, cost)
-    ax3.set_xlabel('theta0')
-    ax3.set_ylabel('theta1')
-    ax3.set_zlabel('J(theta)')
-    plt.show()
+    # Plot the cost function in 3d
+    # fig3 = plt.figure()
+    # ax3 = fig3.add_subplot(1, 1, 1, projection='3d')
+    # n=100
+    # theta0, theta1 = np.meshgrid(np.linspace(-500, 500, n), np.linspace(-500, 500, n))
+    # cost = np.empty((n, n))
+    # for i in range(n):
+    #     for j in range(n):
+    #         predicted = predict(x_test, [theta0[i, j], theta1[i, j]])
+    #         cost[i,j] = l2_cost(predicted, y_test)
+    #
+    # ax3.plot_surface(theta0, theta1, cost)
+    # ax3.set_xlabel('theta0')
+    # ax3.set_ylabel('theta1')
+    # ax3.set_zlabel('J(theta)')
+    # plt.show()
 
 # Run main
 if __name__ == "__main__":
