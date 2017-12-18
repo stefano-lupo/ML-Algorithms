@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -11,13 +12,14 @@ def split_data(X, y, factor=0.3):
     :param factor: Split factor
     :return: x_train, y_train, x_test, y_test
     """
-    split = round(X.shape[0] * (1-factor))
-    x_train = X[0:split]
-    y_train = y[0:split]
-    x_test = X[-(X.shape[0]-split):]
-    y_test = y[-(y.shape[0]-split):]
+    # split = round(X.shape[0] * (1-factor))
+    # x_train = X[0:split]
+    # y_train = y[0:split]
+    # x_test = X[-(X.shape[0]-split):]
+    # y_test = y[-(y.shape[0]-split):]
+    # return x_train, x_test, y_train, y_test
 
-    return x_train, y_train, x_test, y_test
+    return train_test_split(X, y, test_size=factor)
 
 
 def prepend_bias_term(X):
@@ -55,8 +57,7 @@ def l2_cost(predicted, actual):
 def predict(data, theta):
     # print(data.shape)
     # print(theta.shape)
-    predictions = np.dot(data, theta)
-    return np.reshape(predictions, (predictions.shape[0], 1))
+    return np.dot(data, theta)
 
 
 def gradient(X, predicted, actual):
@@ -72,7 +73,7 @@ def gradient(X, predicted, actual):
     return inner * 2 / X.shape[0]
 
 
-def gradient_descent(x_train, y_train, learn=0.02, iterations=5000, threshold=0.1):
+def gradient_descent(x_train, y_train, learn=0.02, iterations=1000, threshold=0.1):
     theta = np.array([0.5, 0.8])
     loss = []
     for i in range(iterations):
@@ -88,13 +89,8 @@ def gradient_descent(x_train, y_train, learn=0.02, iterations=5000, threshold=0.
         # Get the gradient
         grad = gradient(x_train, predictions, y_train)
 
-        print(theta)
-        print(grad)
-
         # Update theta
         theta = theta - learn * grad
-
-        print(theta)
 
     # Plot the results
     plt.plot(loss)
@@ -102,6 +98,10 @@ def gradient_descent(x_train, y_train, learn=0.02, iterations=5000, threshold=0.
     plt.xlabel("Iteration")
     plt.show()
 
+    min_loss = min(loss)
+    print("Final loss: ", min_loss)
+
+    return theta, min_loss
 
 def main():
     # Load the data
@@ -111,35 +111,79 @@ def main():
 
     # Make them 2d array for consitency
     X = np.reshape(X, (X.shape[0], 1))
-    y = np.reshape(y, (y.shape[0], 1))
+    # y = np.reshape(y, (y.shape[0], 1))
 
     # Plot the data
-    fig, ax = plt.subplots(figsize=(12, 8))
-    ax.scatter(X, y, label="Data")
-    ax.set_xlabel("Amazon")
-    ax.set_ylabel("Google")
-    ax.set_title("Google vs Amazon stock price")
-    ax.set_xlim(xmin=0)
-    ax.set_ylim(ymin=0)
+    # fig, ax = plt.subplots(figsize=(12, 8))
+    # ax.scatter(X, y, label="Data")
+    # ax.set_xlabel("Amazon")
+    # ax.set_ylabel("Google")
+    # ax.set_title("Google vs Amazon stock price")
+    # ax.set_xlim(xmin=0)
+    # ax.set_ylim(ymin=0)
     # plt.show()
 
     # FIRST THING - Split data, don't leak any info about test set into model
-    x_train, y_train, x_test, y_test = split_data(X, y)
+    x_train, x_test, y_train, y_test = split_data(X, y)
 
     # Prepare data for training
     x_train = normalize(x_train)
-    y_train = normalize(y_train)
 
-    # Prepend bias term after normalization (or else lots of nans)
+    # # Prepend bias term after normalization (or else lots of nans)
     x_train = prepend_bias_term(x_train)
 
     # Test the functions
-    theta = np.array([0, 0])
-    predicted = predict(x_train, theta)
-    loss = l2_cost(predicted, y_train)
+    # theta = np.array([300, 0.5])
+    # predicted = predict(x_train, theta)
+    # loss = l2_cost(predicted, y_train)
+    # grad = gradient(x_train, predicted, y_train)
+
+    # Print results
+    # print(predicted)
+    # print(loss)
+    # print(grad)
 
     # Perform gradient descent
-    gradient_descent(x_train, y_train)
+    theta, min_loss = gradient_descent(x_train, y_train, learn=0.1, iterations=100)
+    print("Learned theta = ", theta)
+    print("Minimum loss = ", min_loss)
+
+    # Prepare test data
+    x_test = normalize(x_test)
+    x_test = prepend_bias_term(x_test)
+
+    # Predict the test values
+    predicted = predict(x_test, theta)
+    loss = l2_cost(predicted, y_test)
+    print("Loss on test = ", loss)
+
+    # Plot the predictions vs the actual values
+    plt.scatter(x_test[:, 1], predicted, label="Predicted")
+    plt.scatter(x_test[:, 1], y_test, label="Actual")
+    plt.xlabel("Amazon")
+    plt.ylabel("Google")
+    axes = plt.gca()
+    axes.set_xlim(xmin=0)
+    axes.set_ylim(ymin=0)
+    plt.legend()
+    plt.show()
+
+    # Plot the cost function in 3d
+    fig3 = plt.figure()
+    ax3 = fig3.add_subplot(1, 1, 1, projection='3d')
+    n=100
+    theta0, theta1 = np.meshgrid(np.linspace(-500, 500, n), np.linspace(-500, 500, n))
+    cost = np.empty((n, n))
+    for i in range(n):
+        for j in range(n):
+            predicted = predict(x_test, [theta0[i, j], theta1[i, j]])
+            cost[i,j] = l2_cost(predicted, y_test)
+
+    ax3.plot_surface(theta0, theta1, cost)
+    ax3.set_xlabel('theta0')
+    ax3.set_ylabel('theta1')
+    ax3.set_zlabel('J(theta)')
+    plt.show()
 
 # Run main
 if __name__ == "__main__":
