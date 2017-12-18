@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
-from mpl_toolkits.mplot3d import Axes3D
 
 def split_data(X, y, factor=0.3):
     """
@@ -10,16 +9,9 @@ def split_data(X, y, factor=0.3):
     :param X: Design Matrix
     :param y: Target Vector
     :param factor: Split factor
-    :return: x_train, y_train, x_test, y_test
+    :return: x_train, x_test, y_train, y_test
     """
-    # split = round(X.shape[0] * (1-factor))
-    # x_train = X[0:split]
-    # y_train = y[0:split]
-    # x_test = X[-(X.shape[0]-split):]
-    # y_test = y[-(y.shape[0]-split):]
-    # return x_train, x_test, y_train, y_test
-
-    return train_test_split(X, y, test_size=factor)
+    return train_test_split(X, y, test_size=factor, random_state=99)
 
 
 def prepend_bias_term(X):
@@ -54,8 +46,8 @@ def l2_cost(predicted, actual):
     return np.mean(squared)
 
 
-def predict(data, theta):
-    return np.dot(data, theta)
+def predict(data, theta, degree=1):
+    return np.dot(data ** degree, theta)
 
 
 def gradient(X, predicted, actual):
@@ -71,13 +63,13 @@ def gradient(X, predicted, actual):
     return inner * 2 / X.shape[0]
 
 
-def gradient_descent(x_train, y_train, learn=0.02, iterations=1000, threshold=0.1):
+def gradient_descent(x_train, y_train, learn=0.02, iterations=1000, threshold=0.1, degree=1):
     theta = np.array(np.random.rand(x_train.shape[1]))
     loss = []
     for i in range(iterations):
 
         # Get new predictions
-        predictions = predict(x_train, theta)
+        predictions = predict(x_train, theta, degree=degree)
 
         # Get the loss assoc with these values of theta
         loss.append(l2_cost(predictions, y_train))
@@ -123,6 +115,8 @@ def main():
     # ax.set_ylim(ymin=0)
     # plt.show()
 
+    degree = 1
+
     # FIRST THING - Split data, don't leak any info about test set into model
     x_train, x_test, y_train, y_test = split_data(X, y)
 
@@ -135,7 +129,7 @@ def main():
 
 
     # Perform gradient descent
-    theta, min_loss = gradient_descent(x_train, y_train, learn=0.1, iterations=100)
+    theta, min_loss = gradient_descent(x_train, y_train, learn=0.1, iterations=100, degree=2)
     print("Learned theta = ", theta)
     print("Minimum loss = ", min_loss)
 
@@ -146,21 +140,37 @@ def main():
     y_test = normalize(y_test)
     x_test = prepend_bias_term(x_test)
 
-    # Predict the test values
-    predicted = predict(x_test, theta)
-    loss = l2_cost(predicted, y_test)
-    print("Loss on test = ", loss)
-
     # Plot the results
     axes = plt.gca()
     if x_train.shape[1] == 2:
-        # Plot the predictions vs the actual values
+
+        # Plot the training data and the fit
+        fit_plot = np.column_stack((np.ones(50), np.linspace(np.min(x_train), np.max(x_train), 50)))
+        fitted = predict(fit_plot, theta, degree=degree)
+        plt.scatter(fit_plot[:, 1], fitted, label="Fitted")
+        plt.scatter(x_train[:, 1], y_train, label="Predicted")
+        plt.xlabel("x_train")
+        plt.ylabel("y_train")
+        axes.set_title("Fit to training data")
+        plt.show()
+
+        # Predict the test values
+        predicted = predict(x_test, theta, degree=degree)
+        loss = l2_cost(predicted, y_test)
+        print("Loss on test = ", loss)
+
+        # Plot the predictions against the actual
         plt.scatter(x_test[:, 1], predicted, label="Predicted")
         plt.scatter(x_test[:, 1], y_test, label="Actual")
         plt.xlabel("X")
         plt.ylabel("Y")
         axes.set_title("Input vs Output")
     else:
+        # Predict the test values
+        predicted = predict(x_test, theta, degree=degree)
+        loss = l2_cost(predicted, y_test)
+        print("Loss on test = ", loss)
+
         axes.set_title("Predicted vs Actual (should be straight line)")
         plt.scatter(predicted, y_test)
         plt.xlabel("Predicted")
