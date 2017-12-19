@@ -31,7 +31,7 @@ def normalize(X):
     """
     max = np.max(X, axis=0)
     min = np.min(X, axis=0)
-    return (X - min) / (max - min)
+    return (X - min) / (max - min), max-min
 
 
 def normalise_data(x):
@@ -97,14 +97,7 @@ def gradient_descent(x_train, y_train, learn=0.02, iterations=1000, threshold=0.
         # Update theta
         theta = theta - learn * grad
 
-    # Plot the results
-    plt.plot(loss)
-    plt.ylabel("Loss")
-    plt.xlabel("Iteration")
-    plt.show()
-    min_loss = min(loss)
-
-    return theta, min_loss
+    return theta, np.min(loss), loss
 
 def main():
     # Load the data
@@ -121,127 +114,83 @@ def main():
 
     # Plot the data
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
-    ax1.scatter(X[:, 0], y, label="Data")
-    ax1.set_xlabel("Blood 1")
-    ax1.set_ylabel("Disease")
-    ax1.set_title("Blood 1 vs Disease")
-
-    ax2.scatter(X[:, 0], y, label="Data")
-    ax2.set_xlabel("Blood 2")
-    ax2.set_ylabel("Disease")
-    ax2.set_title("Blood 2 vs Disease")
+    # ax1.scatter(X[:, 0], y, label="Data")
+    # ax1.set_xlabel("Blood 1")
+    # ax1.set_ylabel("Disease")
+    # ax1.set_title("Blood 1 vs Disease")
+    #
+    # ax2.scatter(X[:, 0], y, label="Data")
+    # ax2.set_xlabel("Blood 2")
+    # ax2.set_ylabel("Disease")
+    # ax2.set_title("Blood 2 vs Disease")
 
     positive = y >= 0
     negative = y < 0
-    ax3.scatter(X[positive, 0], X[positive, 1], c='b', marker='o', label="Healthy")
-    ax3.scatter(X[negative, 0], X[negative, 1], c='r', marker='x', label="Not Healthy")
-
-    ax3.legend()
-    plt.show()
-
-    degree = 1
+    ax1.scatter(X[positive, 0], X[positive, 1], c='b', marker='o', label="Healthy")
+    ax1.scatter(X[negative, 0], X[negative, 1], c='r', marker='x', label="Not Healthy")
 
     # FIRST THING - Split data, don't leak any info about test set into model
-    # x_train, x_test, y_train, y_test = split_data(X, y)
-    x_train = X
-    y_train = y
+    x_train, x_test, y_train, y_test = split_data(X, y)
+    # x_train = add_quadratic_feature(x_train)
 
     # Prepare data for training
-    # x_train = normalize(x_train)
-    # y_train = normalize(y_train)
-
-    x_train = add_quadratic_feature(x_train)
+    x_train, x_scale = normalize(x_train)
+    y_train, y_scale = normalize(y_train)
     x_train = prepend_bias_term(x_train)
-
-    x_train = normalise_data(x_train)
-    # y_train = normalise_data(y_train)
 
     print("X = ", x_train[0])
     print("Y = ", y_train[0])
 
-
     # Test the functions
-    theta = np.array([1, 2, 3])
-    example_x = np.array([[1, 1, 1], [-1, -1, -1]])
-    predictions = predict(example_x, theta)
-    print("Predictions: ", predictions)
+    # theta = np.array([1, 2, 3])
+    # example_x = np.array([[1, 1, 1], [-1, -1, -1]])
+    # predictions = predict(example_x, theta)
+    # print("Predictions: ", predictions)
 
-    theta = np.array([0, 0, 0, 0])
-    # print(predictions)
-    cst = cost(x_train, theta, y_train)
-    print("Cost :", cst)
-
-    print("Gradient: ", gradient(x_train, theta, y_train))
+    # theta = np.array([0, 0, 0, 0])
+    # cst = cost(x_train, theta, y_train)
+    # print("Cost :", cst)
+    # print("Gradient: ", gradient(x_train, theta, y_train))
 
     # Perform gradient descent
-    theta, min_loss = gradient_descent(x_train, y_train, learn=0.1, iterations=3000, degree=1)
+    theta, min_loss, loss = gradient_descent(x_train, y_train, learn=0.5, iterations=3000, degree=1)
     print("Learned theta = ", theta)
     print("Minimum loss = ", min_loss)
 
+    # Plot the results
+    ax2.plot(loss)
 
-    """
-   # Prepare test data
-   x_test = normalize(x_test)
-   y_test = normalize(y_test)
-   x_test = prepend_bias_term(x_test)
+    # Prepare test data
+    # x_test = add_quadratic_feature(x_test)
+    x_test, derp = normalize(x_test)
+    y_test, derp = normalize(y_test)
+    x_test = prepend_bias_term(x_test)
 
-   # Plot the results
-   axes = plt.gca()
-   if x_train.shape[1] == 2:
+    test_cost = cost(x_test, theta, y_test)
+    print("Cost on test data: ", test_cost)
 
-       # Plot the training data and the fit
-       fit_plot = np.column_stack((np.ones(50), np.linspace(np.min(x_train), np.max(x_train), 50)))
-       fitted = predict(fit_plot, theta, degree=degree)
-       plt.scatter(fit_plot[:, 1], fitted, label="Fitted")
-       plt.scatter(x_train[:, 1], y_train, label="Predicted")
-       plt.xlabel("x_train")
-       plt.ylabel("y_train")
-       axes.set_title("Fit to training data")
-       plt.show()
+    X, derp = normalize(X)
 
-       # Predict the test values
-       predicted = predict(x_test, theta, degree=degree)
-       loss = cost(predicted, y_test)
-       print("Loss on test = ", loss)
+    # Plot the results
+    ax3.scatter(X[positive, 0], X[positive, 1], c='b', marker='o', label="Healthy")
+    ax3.scatter(X[negative, 0], X[negative, 1], c='r', marker='x', label="Not Healthy")
 
-       # Plot the predictions against the actual
-       plt.scatter(x_test[:, 1], predicted, label="Predicted")
-       plt.scatter(x_test[:, 1], y_test, label="Actual")
-       plt.xlabel("X")
-       plt.ylabel("Y")
-       axes.set_title("Input vs Output")
-   else:
-       # Predict the test values
-       predicted = predict(x_test, theta, degree=degree)
-       loss = cost(predicted, y_test)
-       print("Loss on test = ", loss)
+    # Plot Decision Boundary
+    db_x = np.linspace(0, 1, 50)
+    if len(theta) == 3:
+        # Linear
+        boundary = -(theta[0] + (theta[1] * db_x)) / theta[2]
+        # boundary = -((theta[0] * db_x) + (theta[1] * db_x))
+        ax3.scatter(db_x, boundary)
+    else:
+        z = 2
+        # boundary = -(theta[0] + (theta[1] * db_x) + (theta[2] * db_x) + (theta[3] * np.square(db_x)))
+        # ax3.scatter(db_x, boundary)
 
-       axes.set_title("Predicted vs Actual (should be straight line)")
-       plt.scatter(predicted, y_test)
-       plt.xlabel("Predicted")
-       plt.ylabel("Actual")
+    ax3.legend()
+    ax4.legend()
+    plt.show()
 
-   plt.legend()
-   plt.show()
-
-
-   # Plot the cost function in 3d
-   # fig3 = plt.figure()
-   # ax3 = fig3.add_subplot(1, 1, 1, projection='3d')
-   # n=100
-   # theta0, theta1 = np.meshgrid(np.linspace(-500, 500, n), np.linspace(-500, 500, n))
-   # cost = np.empty((n, n))
-   # for i in range(n):
-   #     for j in range(n):
-   #         predicted = predict(x_test, [theta0[i, j], theta1[i, j]])
-   #         cost[i,j] = l2_cost(predicted, y_test)
-   #
-   # ax3.plot_surface(theta0, theta1, cost)
-   # ax3.set_xlabel('theta0')
-   # ax3.set_ylabel('theta1')
-   # ax3.set_zlabel('J(theta)')
-   # plt.show()
-   """
 
 # Run main
 if __name__ == "__main__":
