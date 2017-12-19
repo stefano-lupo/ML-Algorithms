@@ -176,16 +176,19 @@ def main():
     ax3.scatter(X[negative, 0], X[negative, 1], c='r', marker='x', label="Not Healthy")
 
     # Plot Decision Boundary
+    # Eg Linear: z = t0 + t1*x1 + t2*x2 where z is height (label)
+    # Project onto plane --> let z = 0 and plot with x1 as x access, x2 as y access
+    # 0 = t0 + t1*x1 + t2*x2 --> t2*x2 = -(t0 + t1*x1)
+    # x2 = -(t0 + t1*x1) / t2 or x2 = -(t0 + t1*x1 + t3 * x1^2) / t2 for quadratic
     db_x = np.linspace(0, 1, 50)
     if len(theta) == 3:
         # Linear
-        boundary = -(theta[0] + (theta[1] * db_x)) / theta[2]
+        x2 = -(theta[0] + (theta[1] * db_x) / x_scale[0]) / (theta[2]// x_scale[1])
         # boundary = -((theta[0] * db_x) + (theta[1] * db_x))
-        ax3.scatter(db_x, boundary)
+        ax3.scatter(db_x, x2)
     else:
-        z = 2
-        # boundary = -(theta[0] + (theta[1] * db_x) + (theta[2] * db_x) + (theta[3] * np.square(db_x)))
-        # ax3.scatter(db_x, boundary)
+        x2 = -(theta[0] + theta[1] * db_x + theta[3] * np.square(db_x)) / theta[2]
+        ax3.scatter(db_x, x2)
 
     ax3.legend()
     ax4.legend()
