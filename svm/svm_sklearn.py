@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
+from sklearn import svm
 
 
 def split_data(X, y, factor=0.3):
@@ -27,71 +28,35 @@ def prepend_bias_term(X):
 def normalize_data(x):
     # rescale data to lie between 0 and 1
     scale = x.max(axis=0)
-    return x/scale, scale
+    return (x/scale, scale)
 
 
 def add_quadratic_feature(X):
     return np.column_stack((X, X[:, 0] ** 2))
 
 
-def predict(data, theta, degree=1):
-    xtt = np.dot(data ** degree, theta)
-    return np.where(xtt < 0, -1, 1)
-
-
-def cost(X, theta, actual, lamb=2):
-    """
-    J(Theta) = average( max(0, 1-(yi*thetaT*xi)) ) + lambda*thetaT*theta
-    """
-    reg = lamb * np.dot(theta, theta)
-    lin_comb = np.dot(X, theta)
-    lin_comb *= actual
-    lin_comb = 1 - lin_comb
-    max = np.maximum(np.zeros(X.shape[0]), lin_comb)
-
-    return np.mean(max) + reg
-
-
-def gradient(X, theta, actual, lamb=0):
-    """
-    2*lamb*theta_j - average(yi * xij if(yi*thetaT*xi <= 1) )
-    :param X:
-    :param theta:
-    :param actual:
-    :return:
-    """
-
-    reg = 2*lamb * theta        # Nx1
-    lc = np.dot(X, theta)       # Mx1
-    condition = actual * lc     # Mx1
-    condition = condition <= 1  # Mx1
-    left = (X.T * actual).T     # MxN
-    inner = (left.T * condition).T  # MxN
-
-    return reg - np.mean(inner, axis=0)     #Nx1
-
-
-def gradient_descent(x_train, y_train, learn=0.02, iterations=1000, threshold=0.1, degree=1, lamb=0):
-    print("Running Gradient Descent")
-    theta = np.array(np.random.rand(x_train.shape[1]))
-    loss = []
-    for i in range(iterations):
-
-        # Get new predictions
-        predictions = predict(x_train, theta, degree=degree)
-
-        # Get the loss assoc with these values of theta
-        loss.append(cost(x_train, theta, y_train))
-
-        # Check if within threshold
-
-        # Get the gradient
-        grad = gradient(x_train, theta, y_train, lamb=lamb)
-
-        # Update theta
-        theta = theta - learn * grad
-
-    return theta, np.min(loss), loss
+def plotDecisionBoundary(Xt,y,Xscale,theta):
+    # plots the training data plus the decision boundary in the model
+    fig, ax = plt.subplots(figsize=(12,8))
+    # plot the data
+    positive = y>0
+    negative = y<0
+    ax.scatter(Xt[positive,1]*Xscale[1], Xt[positive,2]*Xscale[2], c='b', marker='o', label='Healthy')
+    ax.scatter(Xt[negative,1]*Xscale[1], Xt[negative,2]*Xscale[2], c='r', marker='x', label='Not Healthy')
+    # calc the decision boundary
+    x=np.linspace(Xt[:,2].min()*Xscale[2],Xt[:,2].max()*Xscale[2],50)
+    if (len(theta) == 3):
+        # linear boundary
+        x2 = -(theta[0]/Xscale[0]+theta[1]*x/Xscale[1])/theta[2]*Xscale[2]
+    else:
+        # quadratic boundary
+        x2 = -(theta[0]/Xscale[0]+theta[1]*x/Xscale[1]+theta[3]*np.square(x)/Xscale[3])/theta[2]*Xscale[2]
+    # and plot it
+    ax.plot(x,x2,label='Decision boundary')
+    ax.legend()
+    ax.set_xlabel('Test 1')
+    ax.set_ylabel('Test 2')
+    # plt.show()
 
 
 def train_test(X, y):
@@ -109,6 +74,26 @@ def train_test(X, y):
     x_test = prepend_bias_term(x_test)
 
     return x_train, y_train, x_test, y_test, x_scale
+
+
+def plot_gaussian_boundary(Xt,y,Xscale,model):
+    # plots the training data plus the decision boundary when using a kernel SVM
+    fig, ax = plt.subplots(figsize=(12,8))
+    # plot the data
+    positive = y>0
+    negative = y<0
+    ax.scatter(Xt[positive,1]*Xscale[1], Xt[positive,2]*Xscale[2], c='b', marker='o', label='Healthy')
+    ax.scatter(Xt[negative,1]*Xscale[1], Xt[negative,2]*Xscale[2], c='r', marker='x', label='Not Healthy')
+    # calc the decision boundary
+    x_min, x_max = Xt.min() - 0.1, Xt.max() + 0.1
+    y_min, y_max = y.min() - 0.1, y.max() + 0.1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, 0.05), np.arange(y_min, y_max, 0.05))
+    Z = model.predict(np.column_stack((np.ones(xx.ravel().shape),xx.ravel(), yy.ravel(), np.square(xx.ravel()))))
+    Z = Z.reshape(xx.shape)
+    ax.contour(xx*Xscale[1], yy*Xscale[2], Z)
+    ax.legend()
+    ax.set_xlabel('Test 1')
+    ax.set_ylabel('Test 2')
 
 
 def training_only(X, y):
@@ -134,6 +119,7 @@ def main():
     print("X Shape: ", X.shape)
     print("Y Shape: ", y.shape)
 
+
     # Plot the data
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
     ax1.scatter(X[:, 0], y, label="Data")
@@ -146,42 +132,31 @@ def main():
     ax2.set_ylabel("Disease")
     ax2.set_title("Blood 2 vs Disease")
 
-    positive = y >= 0
-    negative = y < 0
-    ax3.scatter(X[positive, 0], X[positive, 1], c='b', marker='o', label="Healthy")
-    ax3.scatter(X[negative, 0], X[negative, 1], c='r', marker='x', label="Not Healthy")
-
     x_train, y_train, x_test, y_test, x_scale = training_only(X, y)
     # x_train, y_train, x_test, y_test, x_scale = train_test(X, y)
 
+    model = svm.SVC(C=1, kernel="linear")
+    model.fit(x_train, y_train)
 
-    # Test the functions
-    # theta = np.array([1, 2, 3])
-    # example_x = np.array([[1, 1, 1], [-1, -1, -1]])
-    # predictions = predict(example_x, theta)
-    # print("Predictions: ", predictions)
-    #
-    # theta = np.array([0, 0, 0, 0])
-    # cst = cost(x_train, theta, y_train)
-    # print("Cost :", cst)
-    # print("Gradient: ", gradient(x_train, theta, y_train, lamb=0))
-
-    # Perform gradient descent
-    theta, min_loss, loss = gradient_descent(x_train, y_train, learn=0.05, iterations=5000, lamb=1)
-    print("Learned theta = ", theta)
-    print("Minimum loss = ", min_loss)
-
+    theta = np.concatenate((model.intercept_, (model.coef_.ravel())[1:4]))
+    print("Learned Theta: ", theta)
     # Plot the results
-    ax4.plot(loss)
+    # ax2.plot(loss)
+    # plt.show()
 
-    test_cost = cost(x_test, theta, y_test)
-    print("Cost on test data: ", test_cost)
-
-    predictions = predict(x_test, theta)
+    predictions = model.predict(x_test)
     print(classification_report(y_test, predictions))
 
     accuracy = accuracy_score(y_test, predictions)
     print("Accuracy on Test: ", accuracy)
+
+    # Plot the results
+    negative = y < 0
+    positive = y > 0
+
+    ax3.scatter(X[positive, 0], X[positive, 1], c='b', marker='o', label="Healthy")
+    ax3.scatter(X[negative, 0], X[negative, 1], c='r', marker='x', label="Not Healthy")
+
 
     # Plot Decision Boundary
     # Eg Linear: z = t0 + t1*x1 + t2*x2 where z is height (label)
@@ -191,7 +166,7 @@ def main():
     db_x = np.linspace(-1, 1, 50)
     if len(theta) == 3:
         # Linear
-        x2 = -(theta[0] + ((theta[1] * db_x) / x_scale[0])) / (theta[2] / x_scale[1])
+        x2 = -(theta[0] + ((theta[1] * db_x) / x_scale[0]) + x_offset[0]) / ((theta[2] / x_scale[1]) + x_offset[1])
         # boundary = -((theta[0] * db_x) + (theta[1] * db_x))
         ax3.scatter(db_x, x2, label="Boundary", c='g')
     else:
@@ -200,6 +175,15 @@ def main():
 
     ax3.legend()
     ax4.legend()
+    plt.show()
+
+    # Training with a Gaussian Kernel (RBF)
+    model = svm.SVC(C=0.5, gamma=0.75, kernel='rbf')
+    model.fit(x_train, y_train)
+    plot_gaussian_boundary(x_train, y_train, x_scale, model)
+    predictions = model.predict(x_train)
+    accuracy = accuracy_score(y_train, predictions)
+    print("Accuracy using gaussian kernel = ", accuracy)
     plt.show()
 
 
